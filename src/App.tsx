@@ -9,7 +9,10 @@ export function App() {
 
   return (
     <>
-      <Heading />
+      <Heading attr={123} attr2="String">
+        Bankai
+      </Heading>
+      <Heading>Bankai 2</Heading>
       <h1>Ola mundo (do App)</h1>
       <p>
         Lorem ipsum dolor sit amet consectetur adipisicing elit. Autem ullam

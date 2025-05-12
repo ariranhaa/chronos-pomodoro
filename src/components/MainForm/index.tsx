@@ -7,10 +7,12 @@ import { TaskModel } from "../../models/TaskModel";
 import { useTaskContext } from "../../contexts/TaskContext/useTaskContext";
 import { getNextCycle } from "../../utils/getNestCycle";
 import { getNextCycleType } from "../../utils/getNextCycleType";
-import { formatSecondsToMinutes } from "../../utils/formatSecodsToMinutes";
+
+import { TaskActionsTypes } from "../../contexts/TaskContext/taskActions";
+import { Tips } from "../Tips";
 
 export function MainForm() {
-  const { state, setState } = useTaskContext();
+  const { state, dispatch } = useTaskContext();
   const taskNameInput = useRef<HTMLInputElement>(null);
 
   const nextCycle = getNextCycle(state.currentCycle);
@@ -37,30 +39,21 @@ export function MainForm() {
       type: nextCycleType,
     };
 
-    const secondsRemaining = newTask.duration * 60;
+    dispatch({ type: TaskActionsTypes.START_TASK, payload: newTask });
 
-    setState((prevState) => {
-      return {
-        ...prevState,
-        config: { ...prevState.config },
-        activeTask: newTask,
-        currentCycle: nextCycle,
-        secondsRemaining,
-        formattedSecondsRemaining: formatSecondsToMinutes(secondsRemaining),
-        tasks: [...prevState.tasks, newTask],
-      };
-    });
+    const worker = new Worker(
+      new URL("../../workers/timerWorker.js", import.meta.url)
+    );
+
+    worker.postMessage("aba");
+
+    worker.onmessage = function (event) {
+      console.log("Principal recebeu:", event.data);
+    };
   }
 
   function handleInterruptTask() {
-    setState((prevState) => {
-      return {
-        ...prevState,
-        activeTask: null,
-        secondsRemaining: 0,
-        formattedSecondsRemaining: "00:00",
-      };
-    });
+    dispatch({ type: TaskActionsTypes.INTERRUPT_TASK });
   }
 
   return (
@@ -77,7 +70,7 @@ export function MainForm() {
       </div>
 
       <div className="formRow">
-        <p>Proximo intervalo é de 25min</p>
+        <Tips />
       </div>
       {state.currentCycle > 0 && (
         <div className="formRow">

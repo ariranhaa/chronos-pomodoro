@@ -1,26 +1,44 @@
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { initialTaskState } from "./initialTaskState";
 import { TaskContext } from "./TaskContext";
 import { taskReducer } from "./taskReducer";
 import { TimerWokerManager } from "../../workers/timerWorkerManager";
 import { TaskActionsTypes } from "./taskActions";
+import { loadBeep } from "../../utils/loadBeep";
+import { TaskStateModel } from "../../models/TaskStateModel";
 
 type TaskContextProviderProps = {
   children: React.ReactNode;
 };
 
 export function TaskContextProvider({ children }: TaskContextProviderProps) {
-  const [state, dispatch] = useReducer(taskReducer, initialTaskState);
+  const [state, dispatch] = useReducer(taskReducer, initialTaskState, () => {
+    const storageState = localStorage.getItem("state");
+
+    if (storageState === null) return initialTaskState;
+    const parsedStorageState = JSON.parse(storageState) as TaskStateModel;
+    return {
+      ...parsedStorageState,
+      activeTask: null,
+      secondsRemaining: 0,
+      formattedSecondsRemaining: "00:00",
+    };
+  });
+  const playBeepRef = useRef<ReturnType<typeof loadBeep> | null>(null);
 
   const worker = TimerWokerManager.getInstance();
 
   worker.onmessage((e) => {
     const countDownSeconds = e.data;
-    console.log(e.data);
 
     if (countDownSeconds <= 0) {
-      console.log("Worker completed");
-      worker.terminate();
+      if (playBeepRef.current) {
+        console.log("Tocando áudio");
+        playBeepRef.current();
+      }
+      dispatch({
+        type: TaskActionsTypes.COMPLETE_TASK,
+      });
     } else {
       dispatch({
         type: TaskActionsTypes.COUNT_DOWN,
@@ -30,12 +48,25 @@ export function TaskContextProvider({ children }: TaskContextProviderProps) {
   });
 
   useEffect(() => {
+    localStorage.setItem("state", JSON.stringify(state));
     if (!state.activeTask) {
-      console.log("Worker terminad por falta de active task");
       worker.terminate();
     }
+
+    document.title = `${state.formattedSecondsRemaining} - Chronos Pomodoro`;
+
     worker.postMessage(state);
   }, [state, worker]);
+
+  useEffect(() => {
+    if (state.activeTask && playBeepRef.current === null) {
+      console.log("Carregando áudio...");
+      playBeepRef.current = loadBeep();
+    } else {
+      console.log("Zerando áudio");
+      playBeepRef.current = null;
+    }
+  }, [state.activeTask]);
 
   return (
     <TaskContext.Provider value={{ state, dispatch }}>

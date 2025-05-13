@@ -5,28 +5,31 @@ import { Input } from "../Input";
 import { useRef } from "react";
 import { TaskModel } from "../../models/TaskModel";
 import { useTaskContext } from "../../contexts/TaskContext/useTaskContext";
-import { getNextCycle } from "../../utils/getNestCycle";
+import { getNextCycle } from "../../utils/getNextCycle";
 import { getNextCycleType } from "../../utils/getNextCycleType";
 
 import { TaskActionsTypes } from "../../contexts/TaskContext/taskActions";
 import { Tips } from "../Tips";
+import { showMessage } from "../adapters/showMessage";
 
 export function MainForm() {
   const { state, dispatch } = useTaskContext();
   const taskNameInput = useRef<HTMLInputElement>(null);
+  const lastTaskName = state.tasks[state.tasks.length - 1]?.name;
 
   const nextCycle = getNextCycle(state.currentCycle);
   const nextCycleType = getNextCycleType(nextCycle);
 
   function handleCreateNewTask(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    showMessage.dismiss();
 
     if (taskNameInput.current === null) return;
 
     const taskName = taskNameInput.current.value.trim();
 
     if (!taskName) {
-      alert("Digitie o nome da tarefa");
+      showMessage.warn("Digitie o nome da tarefa");
       return;
     }
     const newTask: TaskModel = {
@@ -40,10 +43,12 @@ export function MainForm() {
     };
 
     dispatch({ type: TaskActionsTypes.START_TASK, payload: newTask });
+    showMessage.success("Tarefa iniciada!");
   }
 
   function handleInterruptTask() {
     dispatch({ type: TaskActionsTypes.INTERRUPT_TASK });
+    showMessage.error("Tarefa interrompida!");
   }
 
   return (
@@ -56,6 +61,7 @@ export function MainForm() {
           placeholder="Digite algo"
           ref={taskNameInput}
           disabled={!!state.activeTask}
+          defaultValue={lastTaskName}
         />
       </div>
 
